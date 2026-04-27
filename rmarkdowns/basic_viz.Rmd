@@ -40,9 +40,6 @@ library(vembedr)
 embed_url("https://www.youtube.com/watch?v=Dtr4OThmnBU")
 ```
 
-
-
-
 #### Reading in Data
 
 Next, let's read in our data and assign it to the variable `sdr_data`.
@@ -131,6 +128,13 @@ Cool! It seems that the darkest blue points (countries with the lowest SDG 5 sco
 #### <span style="color: red;">Challenge 1</span>
 Create a scatterplot using two different SDG scores. Then, color the points by using a third SDG score. In a couple of sentences, describe what you see.
 
+```{r}
+ggplot(data = sdr_data, aes(x= goal_9_score, y = goal_11_score, color = goal_8_score)) +
+  geom_point()
+```
+The plot shows a positive correlation between Goal 9 and Goal 11 scores. Countries with higher Goal 8 scores cluster in the upper right, indicating that strong performance in industry/innovation tends to overlap with better outcomes for sustainable cities and decent work.
+
+
 ### Bar Chart
 
 When should we use a **bar chart**?
@@ -190,6 +194,14 @@ As we can see in the Oceania region, most Countries do not have the necessary da
 #### <span style="color: red;">Challenge 2</span>
 Create a new bar chart with countries only from the MENA region. 
 
+```{r}
+mena_sdr_data <- sdr_data %>% 
+  filter(regions_used_for_the_sdr == "MENA")
+
+ggplot(mena_sdr_data, aes(x = goal_3_score, y = country)) +
+  geom_bar(stat = "identity")
+```
+
 ### Histogram
 
 When do we use a **histogram**?
@@ -224,3 +236,10 @@ Countries that fall in the higher end of the Goal 4 spectrum belong to the OECD 
 
 #### <span style="color: red;">Challenge 3</span>
 Make a histogram for a different SDG score. Then, fill by region. In a couple of sentences, describe any interesting trends or what you notice from your new histogram.
+
+```{r}
+ggplot(sdr_data, aes(x = goal_11_score, fill=regions_used_for_the_sdr)) + 
+  geom_histogram(bins=33, color="black")
+```
+The plot shows most countries score between 50-90 on Goal 11, meaning most countries are making moderate to good progress on Sustainable Cities and Communities (Goal 11), but there is still significant room for improvement since few countries are achieving scores above 90. The countries that are purple (OECD countries) have higher score ranges, while pink (Sub-Saharan Africa) represents lower scores, which indicates less development in sustainable cities and communities.
+
