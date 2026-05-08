@@ -29,6 +29,7 @@ library(ggpubr)
 library(janitor)
 library(ggcorrplot)
 library(vembedr)
+library(plotly)
 ```
 
 
@@ -197,13 +198,14 @@ To circle back and reinforce how the linear regression (line drawn through our s
   - What does this look like on scatter plot?
   
 ```{r, warning=FALSE, message=FALSE}
-ggplot(sdr_data, aes(x = goal_12_score, 
-                     y = goal_9_score)) +
+p <- ggplot(sdr_data, aes(x = goal_4_score, 
+                           y = goal_8_score,
+                           label = country)) +
   geom_point() +
   geom_smooth() +
-  stat_cor() +
-  theme_minimal() 
+  theme_minimal()
 
+ggplotly(p)
 ```
 
 ### <span style="color: red;">Challenge 1</span>
@@ -220,3 +222,7 @@ ggplot(sdr_data, aes(x = goal_12_score,
       - are there any points that don't follow the trend (outliers)
         
         - which country(s) are outliers?
+        
+-Goal 4 (Quality Education) and Goal 8 (Decent Work and Economic Growth) show a positive correlation, meaning countries with higher education scores tend to have higher economic growth scores. This makes sense because a more educated workforce is better prepared for skilled jobs, which drives economic output. There are some outliers at the low end of Goal 4 scores that still have relatively high Goal 8 scores, which could represent oil-rich countries that generate wealth without relying on education. On the high end, some countries score well on Goal 4 but lower on Goal 8, possibly reflecting nations with strong education systems but weaker job markets.
+        
+        
