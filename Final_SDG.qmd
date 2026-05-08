@@ -1,0 +1,186 @@
+---
+title: "Japan's Hidden Risks: A Deep Dive into SDG 16"
+author: "Berylin Lau"
+date: ""
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+### Introduction
+
+Japan looks like a country that has its institutions figured out. Wealthy, stable, low crime, no constitutional crises on the horizon. So why does the 2023 Sustainable Development Report flag its SDG 16 score with a yellow dashboard and a stagnant trend? That is the question this report is asking. The goal is not to tear Japan down from a ranking it has earned. The goal is to find out what the headline number is hiding, and to name the specific places where Japan's institutional risk profile is worse than it looks at first glance.
+
+**About Japan:** Japan is the world's third-largest economy with a population of about 125 million. It is a stable parliamentary democracy, an OECD member, and ranks 21st globally on the 2023 SDG Index with an overall score of 79.4 out of 100. It is famous for low violent crime, world-class infrastructure, and the most punctual public transit on Earth. Less famously, it has a press-freedom record that doesn't quite match its peer democracies, and a criminal justice system with a roughly 99% conviction rate that has drawn international scrutiny.
+
+### Setup
+
+```{r}
+# libraries
+library(tidyverse)
+library(here)
+library(janitor)
+library(plotly)
+library(ggpubr)
+library(rnaturalearth)
+library(leaflet)
+library(sf)
+```
+
+```{r}
+# data
+sdr_data <- read_csv(here("data/SDR-2023-Data.csv"))
+```
+
+```{r}
+# clean names
+sdr_data <- sdr_data %>% 
+  clean_names()
+```
+
+### Visualization 1: Global SDG 16 Map
+
+This is the outside view. The map shows every country's 2023 SDG 16 score, colored by quantile, and the global divide is impossible to miss: Western Europe, Japan, and parts of the Asia-Pacific sit at the top; Sub-Saharan Africa, Central America, and active conflict zones sit at the bottom. Japan's score of 86.3 lands in the top quantile. It looks, from here, like a clear-cut low-risk country. That is exactly the illusion this report is going to challenge. A single aggregate score averages over indicators where Japan is genuinely world-class and indicators where it has persistent, documented weaknesses. The map is the starting point. The rest of the report peels it back. (Japan is outlined in red)
+
+```{r}
+# world data
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+world <- world %>% 
+  select(name_long, iso_a3, geometry)
+```
+
+```{r}
+# rename and join
+colnames(sdr_data)[which(colnames(sdr_data) == "country_code_iso3")] <- "iso_a3"
+
+sdr_data_world_joined <- left_join(sdr_data, world, by = "iso_a3")
+```
+
+```{r}
+# map prep
+sdr_data_world_joined <- st_as_sf(sdr_data_world_joined)
+sdr_data_world_joined <- st_transform(sdr_data_world_joined, "+proj=longlat +datum=WGS84")
+```
+
+```{r}
+# map
+mytext <- paste(
+    "Country: ", sdr_data_world_joined$country, "<br/>",
+    "SDG 16 Score: ", round(sdr_data_world_joined$goal_16_score, 2),
+    sep = "") %>% 
+  lapply(htmltools::HTML)
+
+japan_sf <- sdr_data_world_joined %>% filter(country == "Japan")
+
+leaflet(sdr_data_world_joined) %>% 
+  addTiles() %>% 
+  setView(lat = 20, lng = 30, zoom = 2) %>% 
+  addPolygons(stroke = FALSE, 
+              fillOpacity = 0.7, 
+              smoothFactor = 0.5,
+              color = ~colorQuantile("YlGnBu", goal_16_score)(goal_16_score),
+              label = mytext) %>%
+  addPolygons(data = japan_sf,
+              color = "red",
+              weight = 2,
+              fillOpacity = 0,
+              label = htmltools::HTML(paste("Country: Japan<br/>SDG 16 Score:", 
+                                            round(japan_sf$goal_16_score, 2))))
+```
+
+### Visualization 2: Japan's 17 SDG Profile
+
+This chart shows Japan's score across all 17 SDGs, with SDG 16 highlighted in red. The overall SDG Index Score is 79.4, ranked 21st globally, and SDG 16 at 86.3 sits above that average, one of Japan's stronger goals. The top scores are where you would expect them: No Poverty, Good Health, Quality Education, Industry and Innovation. The weak spots are Gender Equality at 61.7, Life Below Water at 55.8, and Life on Land at 63.1, which reflects a high-consumption industrial economy and persistent gender gaps in workforce participation and political representation. The interesting thing about SDG 16 here is not the score. It is that 86.3 is hiding something specific, and the next chart is where it shows up.
+
+```{r}
+# bar chart
+japan_goals <- sdr_data %>% 
+  filter(country == "Japan") %>% 
+  select(goal_1_score, goal_2_score, goal_3_score, goal_4_score, goal_5_score,
+         goal_6_score, goal_7_score, goal_8_score, goal_9_score, goal_10_score,
+         goal_11_score, goal_12_score, goal_13_score, goal_14_score, goal_15_score,
+         goal_16_score, goal_17_score) %>% 
+  pivot_longer(cols = everything(), names_to = "goal", values_to = "score") %>% 
+  mutate(goal_num = parse_number(goal),
+         is_sdg_16 = goal_num == 16)
+
+ggplot(japan_goals, aes(x = factor(goal_num), y = score, fill = is_sdg_16)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("gray60", "red")) +
+  theme_minimal() +
+  labs(title = "Japan's Score on All 17 SDGs",
+       subtitle = "SDG 16 highlighted in red",
+       x = "SDG Number",
+       y = "Score (0-100)",
+       fill = "Is SDG 16")
+```
+
+### Visualization 3: SDG 16 Indicators
+
+This is where the aggregate score breaks open. The chart shows Japan's normalized score on each individual SDG 16 indicator, on a 0–100 scale where higher is better. On homicides, child labor, birth registration, and weapons exports, Japan is essentially perfect. Corruption Perceptions sits at 79, which is solid. And then there is Press Freedom at 49.9. That is a failing grade in a country that otherwise looks like an institutional gold standard. The kisha club system gates journalist access to government sources through exclusive press club membership, and pressure from advertisers and political officials compounds it; both are well-documented in Reporters Without Borders' country reports. From a risk-assessment standpoint, this is the number that matters. If you trusted the headline 86.3, you would never know that the press's ability to hold power accountable is the single weakest link in Japan's institutional chain.
+
+```{r}
+# indicator
+japan_indicators <- sdr_data %>% 
+  filter(country == "Japan") %>% 
+  select(starts_with("normalized_score_sdg16")) %>% 
+  pivot_longer(cols = everything(), names_to = "indicator", values_to = "score") %>% 
+  mutate(score = as.numeric(score),
+         label = case_when(
+           indicator == "normalized_score_sdg16_homicides"   ~ "Homicides",
+           indicator == "normalized_score_sdg16_detain"      ~ "Pre-trial detainees",
+           indicator == "normalized_score_sdg16_safe"        ~ "Feeling safe at night",
+           indicator == "normalized_score_sdg16_u5reg"       ~ "Birth registration",
+           indicator == "normalized_score_sdg16_cpi"         ~ "Corruption perceptions",
+           indicator == "normalized_score_sdg16_clabor"      ~ "Child labor",
+           indicator == "normalized_score_sdg16_weaponsexp"  ~ "Weapons exports",
+           indicator == "normalized_score_sdg16_rsf"         ~ "Press freedom",
+           indicator == "normalized_score_sdg16_justice"     ~ "Access to justice",
+           indicator == "normalized_score_sdg16_admin"       ~ "Admin proceedings",
+           indicator == "normalized_score_sdg16_exprop"      ~ "Lawful expropriations"
+         )) %>% 
+  filter(!is.na(score))
+
+ggplot(japan_indicators, aes(x = score, y = reorder(label, score), fill = score)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient2(low = "red", mid = "gold", high = "forestgreen", midpoint = 75) +
+  theme_minimal() +
+  labs(title = "Japan's SDG 16 Indicator Scores",
+       subtitle = "Press freedom is the standout weakness at 49.9",
+       x = "Normalized Score (0-100, higher = better)",
+       y = "",
+       fill = "Score")
+```
+
+### Visualization 4: Institutions and Development
+
+This scatter plot puts SDG 16 scores on the x-axis against overall SDG Index scores on the y-axis, with a regression line and correlation coefficient. The relationship is strongly positive, around 0.7: countries with stronger institutions tend to have stronger development outcomes overall. Japan sits right on the regression line. Its institutional strength predicts its development outcomes, no major anomaly in either direction. It blends into the cluster of high-performing OECD countries in the upper right, which is exactly where a country this wealthy and stable should be. The takeaway is not that Japan is an outlier here, it is not. It is that a country can sit comfortably inside the "good" cluster and still have a specific, identifiable weak point that the aggregate never surfaces. Aggregate scores are useful for quick comparisons. Real risk assessment lives at the indicator level. For Japan, the number you would want to flag is the press freedom score, not the 86.3.
+
+```{r}
+# scatter
+ggplot(sdr_data, aes(x = goal_16_score, y = x2023_sdg_index_score)) +
+  geom_point(aes(color = regions_used_for_the_sdr), alpha = 0.6) +
+  geom_smooth(method = "lm", color = "black") +
+  stat_cor() +
+  geom_point(data = filter(sdr_data, country == "Japan"), 
+             color = "red", size = 4) +
+  geom_text(data = filter(sdr_data, country == "Japan"),
+            aes(label = country), color = "red", nudge_y = 2.5, fontface = "bold") +
+  theme_minimal() +
+  scale_color_viridis_d() +
+  labs(title = "SDG 16 Score vs Overall SDG Index Score",
+       subtitle = "Japan highlighted in red",
+       x = "SDG 16 Score (Peace, Justice, Institutions)",
+       y = "Overall 2023 SDG Index Score",
+       color = "Region")
+```
+
+### Conclusion
+
+Japan has earned its ranking. The physical-safety and basic rule-of-law indicators are near-perfect, and the overall development trajectory lines up exactly where institutional strength at this level would predict. The risk is not there. It is in press freedom, and to a lesser degree in expropriation procedures, the institutional channels that affect democratic accountability and the long-term checks on government and corporate power. The SDR's yellow dashboard and stagnant trend reflect the fact that those weak points are not improving. For a risk analyst, the actionable insight is simple: you cannot rely on the headline SDG 16 score if you care about media freedom or due-process protections in commercial disputes. You have to read the components. That is the case this report makes, and it is a clean example of why indicator-level analysis beats aggregate-level analysis every time.
